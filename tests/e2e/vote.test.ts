@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const CHAT_URL_REGEX = /\/chat\/[\w-]+/;
+const ASSISTANT_RESPONSE_TIMEOUT = 30_000;
 
 test.describe("Message Vote Buttons", () => {
   test("upvote and downvote buttons appear on an assistant message", async ({
@@ -15,7 +16,7 @@ test.describe("Message Vote Buttons", () => {
     const assistantMessage = page
       .locator("[data-testid='message-assistant']")
       .first();
-    await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
+    await expect(assistantMessage).toBeVisible({ timeout: ASSISTANT_RESPONSE_TIMEOUT });
 
     // hover to reveal action buttons
     await assistantMessage.hover();
@@ -33,7 +34,7 @@ test.describe("Message Vote Buttons", () => {
     const assistantMessage = page
       .locator("[data-testid='message-assistant']")
       .first();
-    await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
+    await expect(assistantMessage).toBeVisible({ timeout: ASSISTANT_RESPONSE_TIMEOUT });
 
     await assistantMessage.hover();
 
@@ -57,7 +58,7 @@ test.describe("Message Vote Buttons", () => {
     const assistantMessage = page
       .locator("[data-testid='message-assistant']")
       .first();
-    await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
+    await expect(assistantMessage).toBeVisible({ timeout: ASSISTANT_RESPONSE_TIMEOUT });
 
     await assistantMessage.hover();
 
@@ -104,7 +105,7 @@ test.describe("Message Content", () => {
     const assistantMessage = page
       .locator("[data-testid='message-assistant']")
       .first();
-    await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
+    await expect(assistantMessage).toBeVisible({ timeout: ASSISTANT_RESPONSE_TIMEOUT });
 
     const content = await assistantMessage.textContent();
     expect(content?.trim().length).toBeGreaterThan(0);

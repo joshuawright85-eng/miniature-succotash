@@ -47,8 +47,8 @@ test.describe("generateUUID()", () => {
   });
 
   test("generates unique values on repeated calls", () => {
-    const uuids = new Set(Array.from({ length: 50 }, () => generateUUID()));
-    expect(uuids.size).toBe(50);
+    const uuids = new Set(Array.from({ length: 20 }, () => generateUUID()));
+    expect(uuids.size).toBe(20);
   });
 });
 

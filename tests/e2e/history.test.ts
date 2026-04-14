@@ -1,5 +1,16 @@
 import { expect, test } from "@playwright/test";
 
+const SIDEBAR_SLOT = "[data-slot='sidebar']";
+
+async function ensureSidebarOpen(page: import("@playwright/test").Page) {
+  const sidebar = page.locator(SIDEBAR_SLOT);
+  if (!(await sidebar.isVisible())) {
+    await page.getByTestId("sidebar-toggle-button").click();
+    await expect(sidebar).toBeVisible();
+  }
+  return sidebar;
+}
+
 test.describe("Sidebar Toggle", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -16,14 +27,11 @@ test.describe("Sidebar Toggle", () => {
     page,
   }) => {
     const toggle = page.getByTestId("sidebar-toggle-button");
-
-    // record initial sidebar state
-    const sidebar = page.locator("[data-slot='sidebar']");
+    const sidebar = page.locator(SIDEBAR_SLOT);
     const initiallyVisible = await sidebar.isVisible();
 
     await toggle.click();
 
-    // sidebar visibility should have changed
     if (initiallyVisible) {
       await expect(sidebar).not.toBeVisible();
     } else {
@@ -37,28 +45,15 @@ test.describe("Chat History in Sidebar", () => {
     page,
   }) => {
     await page.goto("/");
+    await ensureSidebarOpen(page);
 
-    // ensure sidebar is open
-    const sidebar = page.locator("[data-slot='sidebar']");
-    if (!(await sidebar.isVisible())) {
-      await page.getByTestId("sidebar-toggle-button").click();
-      await expect(sidebar).toBeVisible();
-    }
-
-    // a "New Chat" link or button should be present
     const newChatLink = page.getByRole("link", { name: /new\s*chat/i });
     await expect(newChatLink).toBeVisible();
   });
 
   test("user nav button is visible in the sidebar", async ({ page }) => {
     await page.goto("/");
-
-    // ensure sidebar is open
-    const sidebar = page.locator("[data-slot='sidebar']");
-    if (!(await sidebar.isVisible())) {
-      await page.getByTestId("sidebar-toggle-button").click();
-      await expect(sidebar).toBeVisible();
-    }
+    await ensureSidebarOpen(page);
 
     await expect(page.getByTestId("user-nav-button")).toBeVisible();
   });
@@ -67,13 +62,7 @@ test.describe("Chat History in Sidebar", () => {
 test.describe("User Navigation Menu", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-
-    // ensure sidebar is open
-    const sidebar = page.locator("[data-slot='sidebar']");
-    if (!(await sidebar.isVisible())) {
-      await page.getByTestId("sidebar-toggle-button").click();
-      await expect(sidebar).toBeVisible();
-    }
+    await ensureSidebarOpen(page);
   });
 
   test("user nav menu opens on click", async ({ page }) => {

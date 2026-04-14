@@ -9,6 +9,33 @@ import {
   modelsByProvider,
 } from "../../lib/ai/models";
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+type FetchMockResponse = Partial<Response> & {
+  ok: boolean;
+  json?: () => Promise<unknown>;
+};
+
+function mockFetch(response: FetchMockResponse): () => void {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => response as Response;
+  return () => {
+    globalThis.fetch = origFetch;
+  };
+}
+
+function mockFetchThrows(): () => void {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("Network error");
+  };
+  return () => {
+    globalThis.fetch = origFetch;
+  };
+}
+
 test.describe("chatModels constant", () => {
   test("is a non-empty array", () => {
     expect(Array.isArray(chatModels)).toBe(true);
@@ -105,134 +132,119 @@ test.describe("getActiveModels()", () => {
 
 test.describe("getAllGatewayModels()", () => {
   test("returns empty array when fetch throws", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () => {
-      throw new Error("Network error");
-    };
+    const restore = mockFetchThrows();
     try {
       const result = await getAllGatewayModels();
       expect(result).toEqual([]);
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("returns empty array on non-ok HTTP response", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({ ok: false, json: async () => ({}) }) as Response;
+    const restore = mockFetch({ ok: false, json: async () => ({}) });
     try {
       const result = await getAllGatewayModels();
       expect(result).toEqual([]);
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("filters out non-language models", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: [
-            { id: "openai/gpt-4", name: "GPT-4", type: "language", tags: [] },
-            { id: "openai/dall-e-3", name: "DALL-E 3", type: "image", tags: [] },
-          ],
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: "openai/gpt-4", name: "GPT-4", type: "language", tags: [] },
+          { id: "openai/dall-e-3", name: "DALL-E 3", type: "image", tags: [] },
+        ],
+      }),
+    });
     try {
       const result = await getAllGatewayModels();
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe("openai/gpt-4");
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("maps capabilities from tags", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: [
-            {
-              id: "openai/gpt-4",
-              name: "GPT-4",
-              type: "language",
-              tags: ["tool-use", "vision", "reasoning"],
-            },
-          ],
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            id: "openai/gpt-4",
+            name: "GPT-4",
+            type: "language",
+            tags: ["tool-use", "vision", "reasoning"],
+          },
+        ],
+      }),
+    });
     try {
       const [model] = await getAllGatewayModels();
       expect(model.capabilities.tools).toBe(true);
       expect(model.capabilities.vision).toBe(true);
       expect(model.capabilities.reasoning).toBe(true);
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("sets false capabilities when tags are missing", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: [{ id: "openai/gpt-4", name: "GPT-4", type: "language" }],
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: [{ id: "openai/gpt-4", name: "GPT-4", type: "language" }],
+      }),
+    });
     try {
       const [model] = await getAllGatewayModels();
       expect(model.capabilities.tools).toBe(false);
       expect(model.capabilities.vision).toBe(false);
       expect(model.capabilities.reasoning).toBe(false);
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("derives provider from the model id", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: [
-            {
-              id: "anthropic/claude-3",
-              name: "Claude 3",
-              type: "language",
-              tags: [],
-            },
-          ],
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            id: "anthropic/claude-3",
+            name: "Claude 3",
+            type: "language",
+            tags: [],
+          },
+        ],
+      }),
+    });
     try {
       const [model] = await getAllGatewayModels();
       expect(model.provider).toBe("anthropic");
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 });
 
 test.describe("getCapabilities()", () => {
   test("returns capabilities for every chatModel on success", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: {
-            endpoints: [{ supported_parameters: ["tools", "reasoning"] }],
-            architecture: { input_modalities: ["image", "text"] },
-          },
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: {
+          endpoints: [{ supported_parameters: ["tools", "reasoning"] }],
+          architecture: { input_modalities: ["image", "text"] },
+        },
+      }),
+    });
     try {
       const caps = await getCapabilities();
       expect(Object.keys(caps)).toHaveLength(chatModels.length);
@@ -243,15 +255,12 @@ test.describe("getCapabilities()", () => {
         expect(caps[model.id].reasoning).toBe(true);
       }
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("returns false capabilities for all models when fetch throws", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () => {
-      throw new Error("Network error");
-    };
+    const restore = mockFetchThrows();
     try {
       const caps = await getCapabilities();
       for (const model of chatModels) {
@@ -262,14 +271,12 @@ test.describe("getCapabilities()", () => {
         });
       }
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("returns false capabilities on non-ok response", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({ ok: false, json: async () => ({}) }) as Response;
+    const restore = mockFetch({ ok: false, json: async () => ({}) });
     try {
       const caps = await getCapabilities();
       for (const model of chatModels) {
@@ -280,22 +287,20 @@ test.describe("getCapabilities()", () => {
         });
       }
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("detects tools capability from supported_parameters", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: {
-            endpoints: [{ supported_parameters: ["tools"] }],
-            architecture: { input_modalities: [] },
-          },
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: {
+          endpoints: [{ supported_parameters: ["tools"] }],
+          architecture: { input_modalities: [] },
+        },
+      }),
+    });
     try {
       const caps = await getCapabilities();
       const firstId = chatModels[0].id;
@@ -303,29 +308,27 @@ test.describe("getCapabilities()", () => {
       expect(caps[firstId].vision).toBe(false);
       expect(caps[firstId].reasoning).toBe(false);
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 
   test("detects vision capability from input_modalities", async () => {
-    const origFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: {
-            endpoints: [{ supported_parameters: [] }],
-            architecture: { input_modalities: ["image"] },
-          },
-        }),
-      }) as Response;
+    const restore = mockFetch({
+      ok: true,
+      json: async () => ({
+        data: {
+          endpoints: [{ supported_parameters: [] }],
+          architecture: { input_modalities: ["image"] },
+        },
+      }),
+    });
     try {
       const caps = await getCapabilities();
       const firstId = chatModels[0].id;
       expect(caps[firstId].vision).toBe(true);
       expect(caps[firstId].tools).toBe(false);
     } finally {
-      globalThis.fetch = origFetch;
+      restore();
     }
   });
 });
