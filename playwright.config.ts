@@ -52,6 +52,10 @@ export default defineConfig({
   /* Configure projects */
   projects: [
     {
+      name: "unit",
+      testMatch: /unit\/.*.test.ts/,
+    },
+    {
       name: "e2e",
       testMatch: /e2e\/.*.test.ts/,
       use: {
